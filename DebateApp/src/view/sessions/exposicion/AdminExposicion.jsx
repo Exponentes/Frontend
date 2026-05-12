@@ -194,6 +194,14 @@ const AdminExposicion = () => {
                 Nueva Ronda →
               </button>
             )}
+            {fase === 'resultados' && (
+              <button
+                onClick={() => socket.emit('expo_mostrar_resultados', {})}
+                className="bg-yellow-500 hover:bg-yellow-400 text-slate-900 py-5 rounded-3xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-yellow-500/20"
+              >
+                Mostrar Resultados 🏆
+              </button>
+            )}
           </div>
         )}
 

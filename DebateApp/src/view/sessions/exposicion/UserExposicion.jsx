@@ -98,6 +98,11 @@ const UserExposicion = () => {
       setFin(true);
     });
 
+    socket.on('expo_mostrar_resultados', ({ ranking: r }) => {
+      setRanking(r);
+      setFin(true);
+    });
+
     socket.on('expo_reset', () => {
       localStorage.removeItem('expo_nombre');
       window.location.reload();
@@ -116,6 +121,7 @@ const UserExposicion = () => {
       socket.off('expo_vote_progress');
       socket.off('expo_vote_ended');
       socket.off('expo_actividad_terminada');
+      socket.off('expo_mostrar_resultados');
       socket.off('expo_reset');
       socket.off('clear_cache');
     };
