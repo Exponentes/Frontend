@@ -10,5 +10,11 @@
     "titulo": "Debate",
     "descripcion": "Una serie de preguntas, una seleccion concreta. Defiende tu bando.",
     "src": "/actividades/debate"
+  },
+  {
+    "id": 3,
+    "titulo": "Exposiciones",
+    "descripcion": "Un participante expone al azar. Los demás evalúan aspectos como voz, ritmo y pausas.",
+    "src": "/actividades/exposicion"
   }
 ]
