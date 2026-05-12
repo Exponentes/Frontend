@@ -11,6 +11,10 @@ const AdminExposicion = () => {
   const [criterios, setCriterios] = useState([{ id: Date.now(), nombre: '' }]);
   const [showSaveMsg, setShowSaveMsg] = useState(false);
 
+  const [ideas, setIdeas] = useState([{ id: Date.now(), texto: '' }]);
+  const [showIdeasSaveMsg, setShowIdeasSaveMsg] = useState(false);
+  const [ideaActual, setIdeaActual] = useState(null);
+
   const [disponibles, setDisponibles] = useState([]);
   const [expuestos, setExpuestos] = useState([]);
   const [expositorActual, setExpositorActual] = useState(null);
@@ -26,6 +30,7 @@ const AdminExposicion = () => {
     socket.connect();
     socket.emit('join_room', { role: 'admin' });
     socket.emit('expo_get_criterios');
+    socket.emit('expo_get_ideas');
 
     socket.on('expo_criterios', (data) => {
       if (data && data.length > 0) setCriterios(data.map(c => ({ ...c })));
@@ -36,14 +41,24 @@ const AdminExposicion = () => {
       setTimeout(() => setShowSaveMsg(false), 3000);
     });
 
+    socket.on('expo_ideas', (data) => {
+      if (data && data.length > 0) setIdeas(data.map((texto, idx) => ({ id: idx + 1, texto })));
+    });
+
+    socket.on('expo_ideas_saved', () => {
+      setShowIdeasSaveMsg(true);
+      setTimeout(() => setShowIdeasSaveMsg(false), 3000);
+    });
+
     socket.on('expo_update_users', ({ disponibles: d, expuestos: e }) => {
       setDisponibles(d);
       setExpuestos(e);
     });
 
-    socket.on('expo_expositor_seleccionado', ({ expositor, ronda }) => {
+    socket.on('expo_expositor_seleccionado', ({ expositor, ronda, idea }) => {
       setExpositorActual(expositor);
       setRondaActual(ronda);
+      setIdeaActual(idea || null);
       setFase('presentando');
     });
 
@@ -65,6 +80,8 @@ const AdminExposicion = () => {
 
     socket.on('expo_reset', () => {
       setCriterios([{ id: Date.now(), nombre: '' }]);
+      setIdeas([{ id: Date.now(), texto: '' }]);
+      setIdeaActual(null);
       setDisponibles([]);
       setExpuestos([]);
       setExpositorActual(null);
@@ -79,6 +96,8 @@ const AdminExposicion = () => {
     return () => {
       socket.off('expo_criterios');
       socket.off('expo_criterios_saved');
+      socket.off('expo_ideas');
+      socket.off('expo_ideas_saved');
       socket.off('expo_update_users');
       socket.off('expo_expositor_seleccionado');
       socket.off('expo_vote_progress');
@@ -116,7 +135,13 @@ const AdminExposicion = () => {
     socket.emit('expo_nueva_ronda', {});
     setExpositorActual(null);
     setUsuarioDetalle(null);
+    setIdeaActual(null);
     setFase('sala');
+  };
+
+  const guardarIdeas = () => {
+    const validas = ideas.filter(i => i.texto.trim()).map(i => i.texto.trim());
+    socket.emit('expo_save_ideas', validas);
   };
 
   const verDetalle = (nombre) => socket.emit('expo_select_user_detail', { nombre });
@@ -213,12 +238,13 @@ const AdminExposicion = () => {
       </div>
 
       {/* ── Contenido principal ──────────────────────────────────────────────── */}
-      <div className={`min-h-screen flex items-center justify-center p-20 ${fase !== 'configuracion' ? 'pl-96 pt-32' : ''}`}>
+      <div className={`min-h-screen flex justify-center p-20 overflow-y-auto ${fase !== 'configuracion' ? 'items-center pl-96 pt-32' : 'items-start pt-24'}`}>
         <div className="w-full max-w-5xl">
 
           {/* ── CONFIGURACIÓN ─────────────────────────────────────────────────── */}
           {fase === 'configuracion' && (
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-[3rem] p-12 w-full animate-in slide-in-from-bottom duration-500">
+            <div className="space-y-6 w-full animate-in slide-in-from-bottom duration-500 pb-10">
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-[3rem] p-12 w-full">
               <h2 className="text-4xl font-black mb-2 uppercase">Criterios de Evaluación</h2>
               <p className="text-slate-400 font-medium mb-8">Define los aspectos que los participantes evaluarán durante cada exposición.</p>
 
@@ -276,6 +302,63 @@ const AdminExposicion = () => {
                 </div>
               </div>
             </div>
+
+            {/* ── PANEL DE IDEAS ──────────────────────────────────────────────── */}
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-[3rem] p-12 w-full">
+              <h2 className="text-4xl font-black mb-2 uppercase">Ideas / Temas</h2>
+              <p className="text-slate-400 font-medium mb-8">
+                Temas asignados al azar a cada expositor. Se agotan antes de repetirse.
+              </p>
+
+              <div className="space-y-4 max-h-[35vh] overflow-y-auto pr-4 custom-scrollbar mb-8">
+                {ideas.map((idea, idx) => (
+                  <div key={idea.id} className="bg-white/5 border border-white/10 p-5 rounded-3xl flex items-center gap-4">
+                    <span className="text-slate-500 font-black text-sm w-6 text-center shrink-0">{idx + 1}</span>
+                    <input
+                      value={idea.texto}
+                      onChange={(e) => {
+                        const next = [...ideas];
+                        next[idx] = { ...next[idx], texto: e.target.value };
+                        setIdeas(next);
+                      }}
+                      className="flex-1 bg-slate-900/50 border border-white/10 rounded-xl p-4 text-white placeholder-slate-600 focus:border-indigo-500 outline-none transition-colors font-bold text-lg"
+                      placeholder="Ej: La inteligencia artificial en la educación"
+                    />
+                    {ideas.length > 1 && (
+                      <button
+                        onClick={() => setIdeas(prev => prev.filter((_, i) => i !== idx))}
+                        className="text-slate-500 hover:text-red-500 font-bold text-[10px] uppercase tracking-widest transition-colors shrink-0"
+                      >
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-4 relative">
+                <button
+                  onClick={() => setIdeas(prev => [...prev, { id: Date.now(), texto: '' }])}
+                  className="w-1/4 bg-white/5 hover:bg-white/10 border border-white/10 py-5 rounded-3xl font-black uppercase tracking-widest text-sm transition-all text-slate-300"
+                >
+                  + Idea
+                </button>
+                <div className="flex-1 relative">
+                  <button
+                    onClick={guardarIdeas}
+                    className="w-full bg-slate-700 hover:bg-slate-600 py-5 rounded-3xl font-black uppercase tracking-widest text-sm transition-all text-white border border-slate-600"
+                  >
+                    💾 Guardar Ideas
+                  </button>
+                  {showIdeasSaveMsg && (
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-xs font-black px-4 py-2 rounded-lg animate-bounce shadow-lg shadow-emerald-500/50 whitespace-nowrap">
+                      ¡Ideas Guardadas!
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            </div>
           )}
 
           {/* ── SALA ──────────────────────────────────────────────────────────── */}
@@ -322,6 +405,12 @@ const AdminExposicion = () => {
               <div className="text-center p-16 bg-gradient-to-b from-indigo-500/10 to-transparent border border-indigo-500/20 rounded-[3rem]">
                 <p className="text-indigo-400 text-xs font-black mb-4 uppercase tracking-widest">Le toca exponer a</p>
                 <h3 className="text-7xl font-black uppercase tracking-tighter mb-8">{expositorActual.nombre}</h3>
+                {ideaActual && (
+                  <div className="bg-white/5 border border-white/10 rounded-2xl px-8 py-5 mb-6 inline-block">
+                    <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mb-2">Tema Asignado</p>
+                    <p className="text-xl font-bold text-white">{ideaActual}</p>
+                  </div>
+                )}
                 <p className="text-slate-400 text-sm tracking-widest uppercase">
                   Presiona "Iniciar Votación" en el panel izquierdo cuando termine
                 </p>
@@ -333,7 +422,13 @@ const AdminExposicion = () => {
           {fase === 'votacion' && expositorActual && (
             <div className="animate-in slide-in-from-bottom duration-500 w-full max-w-3xl mx-auto text-center">
               <p className="text-indigo-400 text-xs font-black mb-4 uppercase tracking-widest">Evaluando a</p>
-              <h3 className="text-6xl font-black uppercase tracking-tighter mb-12">{expositorActual.nombre}</h3>
+              <h3 className="text-6xl font-black uppercase tracking-tighter mb-4">{expositorActual.nombre}</h3>
+              {ideaActual && (
+                <p className="text-slate-400 text-sm mb-12">
+                  Tema: <span className="text-white font-bold">{ideaActual}</span>
+                </p>
+              )}
+              {!ideaActual && <div className="mb-12" />}
 
               <div className="bg-white/5 border border-white/10 p-10 rounded-[3rem]">
                 <p className="text-slate-400 font-black text-sm uppercase tracking-widest mb-6">Progreso de votación</p>

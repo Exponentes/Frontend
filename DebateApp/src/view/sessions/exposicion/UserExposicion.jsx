@@ -36,6 +36,7 @@ const UserExposicion = () => {
   const [voteProgress, setVoteProgress] = useState({ votaron: 0, total: 0 });
   const [ranking, setRanking] = useState([]);
   const [fin, setFin] = useState(false);
+  const [ideaActual, setIdeaActual] = useState(null);
 
   const soyExpositor = nombre && expositorActual?.nombre === nombre;
 
@@ -63,13 +64,15 @@ const UserExposicion = () => {
         setActividadIniciada(true);
       }
       if (state.expositorActual) setExpositorActual(state.expositorActual);
+      if (state.ideaActual) setIdeaActual(state.ideaActual);
       if (state.votacionActiva) setVotacionActiva(true);
       if (state.hasVoted) setVotoEnviado(true);
       if (state.resultados?.length > 0) setRanking(state.resultados);
     });
 
-    socket.on('expo_expositor_seleccionado', ({ expositor }) => {
+    socket.on('expo_expositor_seleccionado', ({ expositor, idea }) => {
       setExpositorActual(expositor);
+      setIdeaActual(idea || null);
       setVotacionActiva(false);
       setVotoEnviado(false);
       setVotos({});
@@ -91,6 +94,7 @@ const UserExposicion = () => {
       setRanking(r);
       setVotacionActiva(false);
       setExpositorActual(null);
+      setIdeaActual(null);
     });
 
     socket.on('expo_actividad_terminada', ({ ranking: r }) => {
@@ -205,6 +209,12 @@ const UserExposicion = () => {
         <div className="text-6xl mb-6 animate-spin">⏳</div>
         <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-4 text-indigo-400">¡Gran Exposición!</h2>
         <p className="text-slate-400 mb-6">El público está evaluando tu presentación.</p>
+        {ideaActual && (
+          <div className="bg-indigo-500/10 border border-indigo-500/20 px-6 py-4 rounded-2xl text-sm font-bold text-indigo-200 mb-6 max-w-sm text-center">
+            <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mb-1">Tu tema fue</p>
+            {ideaActual}
+          </div>
+        )}
         <div className="bg-white/5 border border-white/10 px-6 py-3 rounded-full text-sm font-black text-slate-400">
           {voteProgress.votaron} / {voteProgress.total} han evaluado
         </div>
@@ -237,6 +247,11 @@ const UserExposicion = () => {
             <p className="text-slate-400 text-sm uppercase tracking-widest">
               Evaluando a: <span className="text-white font-black">{expositorActual?.nombre}</span>
             </p>
+            {ideaActual && (
+              <p className="text-slate-500 text-xs mt-2">
+                Tema: <span className="text-slate-300 font-bold">{ideaActual}</span>
+              </p>
+            )}
           </div>
 
           {criterios.map(c => (
@@ -281,9 +296,21 @@ const UserExposicion = () => {
                 ¡Eres tú! Prepárate para exponer
               </p>
             )}
+            {soyExpositor && ideaActual && (
+              <div className="mt-6 bg-indigo-500/20 border border-indigo-400/30 rounded-2xl px-6 py-4 text-left">
+                <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-2">Tu tema es</p>
+                <p className="text-xl font-black text-white">{ideaActual}</p>
+              </div>
+            )}
           </div>
-          {!soyExpositor && (
-            <p className="text-slate-400 text-sm tracking-widest uppercase">Presta atención a la exposición</p>
+          {!soyExpositor && ideaActual && (
+            <div className="mt-6 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-center">
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Tema</p>
+              <p className="text-base font-bold text-slate-200">{ideaActual}</p>
+            </div>
+          )}
+          {!soyExpositor && !ideaActual && (
+            <p className="text-slate-400 text-sm tracking-widest uppercase mt-6">Presta atención a la exposición</p>
           )}
         </div>
       </div>
